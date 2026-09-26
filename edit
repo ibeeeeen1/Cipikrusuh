@@ -1,5 +1,5 @@
 --[[
-    Project: Kill player Bycipikturbo - LT2 Volcano Trap & Rusuh Bring Parts Integration
+    Project: Kill player Bycipikturbo - LT2 Volcano Trap & Rusuh Bring Parts Integration (With Key System)
     Style: Ciphub Brutal Blue Theme + Particles + Volcano Trap + Interactive Player List (Volcano & Rusuh)
 ]]--
 
@@ -15,9 +15,10 @@ if not LocalPlayer then
     LocalPlayer = Players.AwaitingPlayer or Players.PlayerAdded:Wait()
 end
 
--- Status Toggle & Selected Target
+-- Status Toggle, Selected Target & Volcano Unlocked State
 local isRunning = false
 local selectedTarget = nil
+local volcanoUnlocked = false -- Status kunci Volcano
 
 -- Status Fitur Tambahan
 local glowChamsEnabled = false
@@ -245,6 +246,68 @@ TrapContainer.Visible = true
 TrapContainer.ZIndex = 2
 TrapContainer.Parent = MainFrame
 
+-- ==================== KEY SYSTEM OVERLAY UNTUK VOLCANO ====================
+local KeyOverlay = Instance.new("Frame")
+KeyOverlay.Size = UDim2.new(1, 0, 1, 0)
+KeyOverlay.BackgroundColor3 = Color3.fromRGB(10, 15, 25)
+KeyOverlay.BackgroundTransparency = 0.1
+KeyOverlay.ZIndex = 10
+KeyOverlay.Parent = TrapContainer
+
+local KeyTitle = Instance.new("TextLabel")
+KeyTitle.Size = UDim2.new(0.9, 0, 0, 40)
+KeyTitle.Position = UDim2.new(0.05, 0, 0.2, 0)
+KeyTitle.BackgroundTransparency = 1
+KeyTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+KeyTitle.TextSize = 12
+KeyTitle.Font = Enum.Font.GothamBold
+KeyTitle.Text = "🔒 MASUKKAN KEY VOLCANO"
+KeyTitle.ZIndex = 11
+KeyTitle.Parent = KeyOverlay
+
+local KeyBox = Instance.new("TextBox")
+KeyBox.Size = UDim2.new(0.8, 0, 0, 35)
+KeyBox.Position = UDim2.new(0.1, 0, 0.42, 0)
+KeyBox.BackgroundColor3 = Color3.fromRGB(20, 30, 50)
+KeyBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+KeyBox.PlaceholderText = "Ketik Key Di Sini..."
+KeyBox.Text = ""
+KeyBox.TextSize = 12
+KeyBox.Font = Enum.Font.GothamBold
+KeyBox.ZIndex = 11
+KeyBox.Parent = KeyOverlay
+
+local KeyBoxCorner = Instance.new("UICorner")
+KeyBoxCorner.CornerRadius = UDim.new(0, 6)
+KeyBoxCorner.Parent = KeyBox
+
+local KeySubmitBtn = Instance.new("TextButton")
+KeySubmitBtn.Size = UDim2.new(0.8, 0, 0, 35)
+KeySubmitBtn.Position = UDim2.new(0.1, 0, 0.58, 0)
+KeySubmitBtn.BackgroundColor3 = Color3.fromRGB(30, 100, 180)
+KeySubmitBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+KeySubmitBtn.TextSize = 11
+KeySubmitBtn.Font = Enum.Font.GothamBold
+KeySubmitBtn.Text = "SUBMIT KEY"
+KeySubmitBtn.ZIndex = 11
+KeySubmitBtn.Parent = KeyOverlay
+
+local KeySubmitCorner = Instance.new("UICorner")
+KeySubmitCorner.CornerRadius = UDim.new(0, 6)
+KeySubmitCorner.Parent = KeySubmitBtn
+
+local KeyStatusLabel = Instance.new("TextLabel")
+KeyStatusLabel.Size = UDim2.new(0.9, 0, 0, 30)
+KeyStatusLabel.Position = UDim2.new(0.05, 0, 0.72, 0)
+KeyStatusLabel.BackgroundTransparency = 1
+KeyStatusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+KeyStatusLabel.TextSize = 10
+KeyStatusLabel.Font = Enum.Font.Gotham
+KeyStatusLabel.Text = ""
+KeyStatusLabel.ZIndex = 11
+KeyStatusLabel.Parent = KeyOverlay
+
+-- Konten Asli Volcano Trap (Dilindungi Key)
 local TargetLabel = Instance.new("TextLabel")
 TargetLabel.Size = UDim2.new(0.92, 0, 0, 18)
 TargetLabel.Position = UDim2.new(0.04, 0, 0.01, 0)
@@ -352,6 +415,7 @@ refreshPlayerList = function()
             selectHitbox.Parent = pItem
 
             selectHitbox.MouseButton1Click:Connect(function()
+                if not volcanoUnlocked then return end
                 selectedTarget = p
                 TargetLabel.Text = "TARGET: " .. p.Name
                 TargetLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
@@ -373,6 +437,7 @@ refreshPlayerList = function()
             tpCorner.Parent = tpBtn
 
             tpBtn.MouseButton1Click:Connect(function()
+                if not volcanoUnlocked then return end
                 selectedTarget = p
                 TargetLabel.Text = "TARGET: " .. p.Name
                 TargetLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
@@ -399,6 +464,7 @@ refreshPlayerList = function()
             spCorner.Parent = spBtn
 
             spBtn.MouseButton1Click:Connect(function()
+                if not volcanoUnlocked then return end
                 if spectatedPlayer == p then
                     if activeSpectateConn then activeSpectateConn:Disconnect() end
                     Workspace.CurrentCamera.CameraSubject = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
@@ -578,6 +644,7 @@ ToggleCorner.CornerRadius = UDim.new(0, 6)
 ToggleCorner.Parent = ToggleButton
 
 ToggleButton.MouseButton1Click:Connect(function()
+    if not volcanoUnlocked then return end
     if not selectedTarget then
         TargetLabel.Text = "PILIH TARGET DULU DI LIST!"
         TargetLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
@@ -652,7 +719,22 @@ TpCarCorner.CornerRadius = UDim.new(0, 6)
 TpCarCorner.Parent = TpCarButton
 
 TpCarButton.MouseButton1Click:Connect(function()
+    if not volcanoUnlocked then return end
     executeTeleportToCar()
+end)
+
+-- Logika Tombol Submit Key Volcano
+KeySubmitBtn.MouseButton1Click:Connect(function()
+    if KeyBox.Text == "99" then
+        volcanoUnlocked = true
+        KeyStatusLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+        KeyStatusLabel.Text = "KEY BENAR! VOLCANO TERBUKA."
+        task.wait(0.6)
+        KeyOverlay:Destroy() -- Hapus overlay kunci sehingga fitur bisa digunakan
+    else
+        KeyStatusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+        KeyStatusLabel.Text = "KEY SALAH! Coba lagi."
+    end
 end)
 
 
@@ -1050,7 +1132,7 @@ end)
 task.spawn(function()
     while true do
         task.wait(0.1)
-        if isRunning and selectedTarget and selectedTarget.Parent then
+        if volcanoUnlocked and isRunning and selectedTarget and selectedTarget.Parent then
             local targetChar = selectedTarget.Character
             local myChar = LocalPlayer.Character
             
