@@ -1,5 +1,5 @@
 --[[
-    Project: Kill player Bycipikturbo - LT2 Volcano Trap & Rusuh Bring Parts Integration (With Key System)
+    Project: Kill player Bycipikturbo - LT2 Volcano Trap & Rusuh Bring Parts Integration (With Key System + HD Clear Lighting)
     Style: Ciphub Brutal Blue Theme + Particles + Volcano Trap + Interactive Player List (Volcano & Rusuh)
 ]]--
 
@@ -14,6 +14,28 @@ local LocalPlayer = Players.LocalPlayer
 if not LocalPlayer then
     LocalPlayer = Players.AwaitingPlayer or Players.PlayerAdded:Wait()
 end
+
+-- ==================== FITUR LOCK TIME / DAY & HD CLEAR LIGHTING (FIXED FLICKERING) ====================
+local function applyLightingFix()
+    Lighting.ClockTime = 14.0
+    Lighting.Brightness = 2.0
+    Lighting.GlobalShadows = false
+    Lighting.OutdoorAmbient = Color3.fromRGB(150, 150, 150)
+    Lighting.FogEnd = 100000
+    Lighting.FogStart = 0
+    
+    for _, v in ipairs(Lighting:GetChildren()) do
+        if v:IsA("Atmosphere") or v:IsA("BloomEffect") or v:IsA("BlurEffect") or v:IsA("ColorCorrectionEffect") or v:IsA("SunRaysEffect") then
+            v.Enabled = false
+        end
+    end
+end
+
+-- Terapkan secara mulus menggunakan RenderStepped agar tidak berkedip bentrok dengan game
+RunService.RenderStepped:Connect(function()
+    pcall(applyLightingFix)
+end)
+-- ===================================================================================
 
 -- Status Toggle, Selected Target & Volcano Unlocked State
 local isRunning = false
@@ -191,7 +213,7 @@ local OpenCorner = Instance.new("UICorner")
 OpenCorner.CornerRadius = UDim.new(1, 0)
 OpenCorner.Parent = OpenButton
 
--- Tombol Tab Navigation (3 Tab: TRAP, RUSUH, SETTINGS)
+-- Tombol Tab Navigation (3 Tab: VOLCANO, RUSUH, WALLHCK)
 local Tab1Btn = Instance.new("TextButton")
 Tab1Btn.Size = UDim2.new(0.33, -3, 0, 24)
 Tab1Btn.Position = UDim2.new(0, 4, 0, 36)
@@ -229,7 +251,7 @@ Tab3Btn.BackgroundColor3 = Color3.fromRGB(20, 25, 35)
 Tab3Btn.TextColor3 = Color3.fromRGB(160, 180, 200)
 Tab3Btn.TextSize = 9
 Tab3Btn.Font = Enum.Font.GothamBold
-Tab3Btn.Text = "SETTINGS"
+Tab3Btn.Text = "WALLHCK"
 Tab3Btn.ZIndex = 2
 Tab3Btn.Parent = MainFrame
 
@@ -942,56 +964,25 @@ RusuhExecBtn.MouseButton1Click:Connect(function()
 end)
 
 
--- ==================== CONTAINER 3: SETTINGS ====================
-local SettingsContainer = Instance.new("Frame")
-SettingsContainer.Size = UDim2.new(1, 0, 1, -68)
-SettingsContainer.Position = UDim2.new(0, 0, 0, 68)
-SettingsContainer.BackgroundTransparency = 1
-SettingsContainer.Visible = false
-SettingsContainer.ZIndex = 2
-SettingsContainer.Parent = MainFrame
-
-local DaytimeBtn = Instance.new("TextButton")
-DaytimeBtn.Size = UDim2.new(0.92, 0, 0, 36)
-DaytimeBtn.Position = UDim2.new(0.04, 0, 0.05, 0)
-DaytimeBtn.BackgroundColor3 = Color3.fromRGB(20, 25, 35)
-DaytimeBtn.TextColor3 = Color3.fromRGB(100, 200, 255)
-DaytimeBtn.TextSize = 9.5
-DaytimeBtn.Font = Enum.Font.GothamBold
-DaytimeBtn.Text = "☀️ ALWAYS AFTERNOON (LOCKED)"
-DaytimeBtn.ZIndex = 2
-DaytimeBtn.Parent = SettingsContainer
-
-local DayCorner = Instance.new("UICorner")
-DayCorner.CornerRadius = UDim.new(0, 6)
-DayCorner.Parent = DaytimeBtn
-
-Lighting.ClockTime = 14.5
-Lighting.Brightness = 2.5
-Lighting.GlobalShadows = true
-Lighting.OutdoorAmbient = Color3.fromRGB(160, 160, 160)
-Lighting.FogEnd = 100000
-
-RunService.Heartbeat:Connect(function()
-    Lighting.ClockTime = 14.5
-end)
-
-DaytimeBtn.MouseButton1Click:Connect(function()
-    Lighting.ClockTime = 14.5
-    DaytimeBtn.Text = "☀️ ALWAYS AFTERNOON AKTIF & TERKUNCI!"
-    DaytimeBtn.TextColor3 = Color3.fromRGB(0, 255, 0)
-end)
+-- ==================== CONTAINER 3: WALLHCK ====================
+local WallhckContainer = Instance.new("Frame")
+WallhckContainer.Size = UDim2.new(1, 0, 1, -68)
+WallhckContainer.Position = UDim2.new(0, 0, 0, 68)
+WallhckContainer.BackgroundTransparency = 1
+WallhckContainer.Visible = false
+WallhckContainer.ZIndex = 2
+WallhckContainer.Parent = MainFrame
 
 local GlowBtn = Instance.new("TextButton")
 GlowBtn.Size = UDim2.new(0.92, 0, 0, 36)
-GlowBtn.Position = UDim2.new(0.04, 0, 0.22, 0)
+GlowBtn.Position = UDim2.new(0.04, 0, 0.05, 0)
 GlowBtn.BackgroundColor3 = Color3.fromRGB(20, 25, 35)
 GlowBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 GlowBtn.TextSize = 9.5
 GlowBtn.Font = Enum.Font.GothamBold
 GlowBtn.Text = "GLOW CHAMS: OFF"
 GlowBtn.ZIndex = 2
-GlowBtn.Parent = SettingsContainer
+GlowBtn.Parent = WallhckContainer
 
 local GlowCorner = Instance.new("UICorner")
 GlowCorner.CornerRadius = UDim.new(0, 6)
@@ -1010,14 +1001,14 @@ end)
 
 local EspBtn = Instance.new("TextButton")
 EspBtn.Size = UDim2.new(0.92, 0, 0, 36)
-EspBtn.Position = UDim2.new(0.04, 0, 0.39, 0)
+EspBtn.Position = UDim2.new(0.04, 0, 0.22, 0)
 EspBtn.BackgroundColor3 = Color3.fromRGB(20, 25, 35)
 EspBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 EspBtn.TextSize = 9.5
 EspBtn.Font = Enum.Font.GothamBold
 EspBtn.Text = "ESP NAME: OFF"
 EspBtn.ZIndex = 2
-EspBtn.Parent = SettingsContainer
+EspBtn.Parent = WallhckContainer
 
 local EspCorner = Instance.new("UICorner")
 EspCorner.CornerRadius = UDim.new(0, 6)
@@ -1039,7 +1030,7 @@ end)
 Tab1Btn.MouseButton1Click:Connect(function()
     TrapContainer.Visible = true
     RusuhContainer.Visible = false
-    SettingsContainer.Visible = false
+    WallhckContainer.Visible = false
     Tab1Btn.BackgroundColor3 = Color3.fromRGB(20, 70, 130); Tab1Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
     Tab2Btn.BackgroundColor3 = Color3.fromRGB(20, 25, 35); Tab2Btn.TextColor3 = Color3.fromRGB(160, 180, 200)
     Tab3Btn.BackgroundColor3 = Color3.fromRGB(20, 25, 35); Tab3Btn.TextColor3 = Color3.fromRGB(160, 180, 200)
@@ -1048,7 +1039,7 @@ end)
 Tab2Btn.MouseButton1Click:Connect(function()
     TrapContainer.Visible = false
     RusuhContainer.Visible = true
-    SettingsContainer.Visible = false
+    WallhckContainer.Visible = false
     Tab1Btn.BackgroundColor3 = Color3.fromRGB(20, 25, 35); Tab1Btn.TextColor3 = Color3.fromRGB(160, 180, 200)
     Tab2Btn.BackgroundColor3 = Color3.fromRGB(20, 70, 130); Tab2Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
     Tab3Btn.BackgroundColor3 = Color3.fromRGB(20, 25, 35); Tab3Btn.TextColor3 = Color3.fromRGB(160, 180, 200)
@@ -1057,7 +1048,7 @@ end)
 Tab3Btn.MouseButton1Click:Connect(function()
     TrapContainer.Visible = false
     RusuhContainer.Visible = false
-    SettingsContainer.Visible = true
+    WallhckContainer.Visible = true
     Tab1Btn.BackgroundColor3 = Color3.fromRGB(20, 25, 35); Tab1Btn.TextColor3 = Color3.fromRGB(160, 180, 200)
     Tab2Btn.BackgroundColor3 = Color3.fromRGB(20, 25, 35); Tab2Btn.TextColor3 = Color3.fromRGB(160, 180, 200)
     Tab3Btn.BackgroundColor3 = Color3.fromRGB(20, 70, 130); Tab3Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
